@@ -102,6 +102,67 @@ SAMPLE_EVENTS = [
     },
 ]
 
+SAMPLE_LANGUAGE_BYTES = {
+    "Python": 1000,
+    "Jupyter Notebook": 400,
+    "JavaScript": 200,
+    "TypeScript": 150,
+    "TeX": 80,
+    "C++": 50,
+    "CSS": 30,
+    "Shell": 20,
+    "HTML": 10,
+}
+
+SAMPLE_CONTRIBUTIONS = {
+    "commits": 247,
+    "pull_requests": 88,
+    "code_reviews": 0,
+    "issues": 0,
+}
+
+SAMPLE_GRAPHQL = {
+    "data": {
+        "user": {
+            "contributionsCollection": {
+                "totalCommitContributions": 247,
+                "totalIssueContributions": 0,
+                "totalPullRequestContributions": 88,
+                "totalPullRequestReviewContributions": 0,
+            },
+            "repositories": {
+                "nodes": [
+                    {
+                        "name": "ARTPS",
+                        "isFork": False,
+                        "languages": {
+                            "edges": [
+                                {"size": 1000, "node": {"name": "Python"}},
+                                {"size": 80, "node": {"name": "TeX"}},
+                            ]
+                        },
+                    },
+                    {
+                        "name": "Poyqraz",
+                        "isFork": False,
+                        "languages": {"edges": [{"size": 99999, "node": {"name": "Python"}}]},
+                    },
+                    {
+                        "name": "worldwideview",
+                        "isFork": True,
+                        "languages": {"edges": [{"size": 5000, "node": {"name": "TypeScript"}}]},
+                    },
+                    {
+                        "name": "Write-a-Think",
+                        "isFork": False,
+                        "languages": {"edges": [{"size": 200, "node": {"name": "JavaScript"}}]},
+                    },
+                ]
+            },
+        }
+    }
+}
+
 BANNED_COPY = (
     "payload bay",
     "primary lock",
@@ -121,12 +182,14 @@ REQUIRED_HEADINGS = (
     "ACTIVITY TIMELINE",
     "CORE SYSTEM",
     "FEATURED PROJECT",
+    "CONTRIBUTION DISTRIBUTION",
 )
 
 CARD_FILES = (
     "technical-profile.svg",
     "language-distribution.svg",
     "activity-timeline.svg",
+    "contribution-distribution.svg",
     "project-artps.svg",
     "project-pyfoldable.svg",
     "project-yolov8.svg",
@@ -134,15 +197,46 @@ CARD_FILES = (
 )
 
 
+def _profile(**extra):
+    kwargs = {
+        "user": SAMPLE_USER,
+        "repos": SAMPLE_REPOS,
+        "events": SAMPLE_EVENTS,
+        "language_bytes": SAMPLE_LANGUAGE_BYTES,
+        "contributions": SAMPLE_CONTRIBUTIONS,
+    }
+    kwargs.update(extra)
+    return gp.collect_profile(**kwargs)
+
+
+def _svg_text(svg: str) -> str:
+    root = ET.fromstring(svg)
+    return " ".join("".join(node.itertext()) for node in root.iter() if node.tag.endswith("text") or node.tag.endswith("title"))
+
+
 class CollectProfileTests(unittest.TestCase):
     def setUp(self):
-        self.profile = gp.collect_profile(SAMPLE_USER, SAMPLE_REPOS, SAMPLE_EVENTS)
+        self.profile = _profile()
 
     def test_owned_count_excludes_forks(self):
         self.assertEqual(self.profile["owned_projects"], 5)
 
-    def test_language_mix_ignores_forks(self):
-        self.assertEqual(self.profile["languages"], {"Python": 4, "Jupyter Notebook": 1})
+    def test_language_bytes_ignore_ninth_language(self):
+        names = list(self.profile["languages"])
+        self.assertEqual(
+            names,
+            [
+                "Python",
+                "Jupyter Notebook",
+                "JavaScript",
+                "TypeScript",
+                "TeX",
+                "C++",
+                "CSS",
+                "Shell",
+            ],
+        )
+        self.assertNotIn("HTML", self.profile["languages"])
 
     def test_featured_order_puts_artps_first(self):
         names = [item["name"] for item in self.profile["featured"]]
@@ -163,10 +257,26 @@ class CollectProfileTests(unittest.TestCase):
         for banned in ("star", "follower"):
             self.assertNotIn(banned, blob)
 
+    def test_contribution_shares_use_real_totals(self):
+        self.assertEqual(
+            self.profile["contribution_shares"],
+            {"commits": 74, "pull_requests": 26, "code_reviews": 0, "issues": 0},
+        )
+
+
+class GraphQLParseTests(unittest.TestCase):
+    def test_parse_graphql_skips_forks_and_profile_repo(self):
+        languages, contributions = gp.parse_graphql(SAMPLE_GRAPHQL, "Poyqraz")
+        self.assertEqual(languages, {"Python": 1000, "TeX": 80, "JavaScript": 200})
+        self.assertEqual(
+            contributions,
+            {"commits": 247, "pull_requests": 88, "code_reviews": 0, "issues": 0},
+        )
+
 
 class RenderTests(unittest.TestCase):
     def setUp(self):
-        self.profile = gp.collect_profile(SAMPLE_USER, SAMPLE_REPOS, SAMPLE_EVENTS)
+        self.profile = _profile()
         self.svgs = gp.render_cards(self.profile)
 
     def test_render_cards_emits_atomic_files(self):
@@ -202,6 +312,36 @@ class RenderTests(unittest.TestCase):
         self.assertIn("ACTIVITY TIMELINE", svg)
         self.assertIn("ARTPS", svg)
 
+    def test_language_card_is_full_width_without_counts(self):
+        svg = self.svgs["language-distribution.svg"]
+        root = ET.fromstring(svg)
+        self.assertEqual(root.attrib.get("width"), "848")
+        text = _svg_text(svg)
+        self.assertIn("Python", text)
+        self.assertIn("JavaScript", text)
+        self.assertNotRegex(text, r"\d")
+        self.assertNotIn("%", text)
+
+    def test_radar_card_shows_axis_percentages(self):
+        svg = self.svgs["contribution-distribution.svg"]
+        text = _svg_text(svg)
+        self.assertIn("CONTRIBUTION DISTRIBUTION", text)
+        self.assertIn("LAST 90 DAYS", text)
+        self.assertIn("COMMITS", text)
+        self.assertIn("PULL REQUESTS", text)
+        self.assertIn("CODE REVIEWS", text)
+        self.assertIn("ISSUES", text)
+        self.assertIn("74%", text)
+        self.assertIn("26%", text)
+
+    def test_radar_zero_total_stays_valid(self):
+        profile = _profile(contributions={"commits": 0, "pull_requests": 0, "code_reviews": 0, "issues": 0})
+        svg = gp.render_contribution_distribution(profile)
+        root = ET.fromstring(svg)
+        self.assertTrue(root.tag.endswith("svg"))
+        self.assertEqual(root.attrib.get("width"), "848")
+        self.assertNotIn("%", _svg_text(svg))
+
 
 class WriteGuardTests(unittest.TestCase):
     def test_invalid_svg_does_not_overwrite(self):
@@ -224,6 +364,7 @@ class ReadmeInteractionTests(unittest.TestCase):
             "assets/generated/technical-profile.svg",
             "assets/generated/language-distribution.svg",
             "assets/generated/activity-timeline.svg",
+            "assets/generated/contribution-distribution.svg",
             "assets/generated/project-artps.svg",
             "assets/generated/project-pyfoldable.svg",
             "assets/generated/project-yolov8.svg",

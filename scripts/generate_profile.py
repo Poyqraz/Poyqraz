@@ -44,6 +44,7 @@ PROJECT_FILES = {
     "Line-Tracking-and-Anomaly-Detection": "project-auv.svg",
 }
 
+AXES = ("commits", "pull_requests", "code_reviews", "issues")
 GRAPHITE = "#0c1014"
 PANEL = "#141b21"
 LINE = "#24303a"
@@ -54,6 +55,27 @@ TEXT = "#d8e0e6"
 MUTED = "#8a97a3"
 BANNED = ("star", "follower")
 NS = "http://www.w3.org/2000/svg"
+GRAPHQL_QUERY = """
+query($login: String!, $from: DateTime!, $to: DateTime!) {
+  user(login: $login) {
+    contributionsCollection(from: $from, to: $to) {
+      totalCommitContributions
+      totalIssueContributions
+      totalPullRequestContributions
+      totalPullRequestReviewContributions
+    }
+    repositories(first: 100, ownerAffiliations: OWNER, isFork: false) {
+      nodes {
+        name
+        isFork
+        languages(first: 10, orderBy: {field: SIZE, direction: DESC}) {
+          edges { size node { name } }
+        }
+      }
+    }
+  }
+}
+"""
 
 
 def esc(value: str | None) -> str:
@@ -64,9 +86,53 @@ def parse_time(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
-def collect_profile(user: dict, repos: list, events: list) -> dict:
+def contribution_shares(contributions: dict | None) -> dict[str, int]:
+    data = contributions or {}
+    total = sum(int(data.get(key, 0) or 0) for key in AXES)
+    if total <= 0:
+        return {key: 0 for key in AXES}
+    percents = {key: round(int(data.get(key, 0) or 0) * 100 / total) for key in AXES}
+    drift = 100 - sum(percents.values())
+    if drift:
+        largest = max(AXES, key=lambda key: percents[key])
+        percents[largest] += drift
+    return percents
+
+
+def parse_graphql(payload: dict, login: str) -> tuple[dict[str, int], dict[str, int]]:
+    user = ((payload or {}).get("data") or {}).get("user") or {}
+    if not user:
+        raise RuntimeError("unexpected GraphQL payload")
+    coll = user.get("contributionsCollection") or {}
+    contributions = {
+        "commits": int(coll.get("totalCommitContributions") or 0),
+        "pull_requests": int(coll.get("totalPullRequestContributions") or 0),
+        "code_reviews": int(coll.get("totalPullRequestReviewContributions") or 0),
+        "issues": int(coll.get("totalIssueContributions") or 0),
+    }
+    languages: Counter[str] = Counter()
+    for node in ((user.get("repositories") or {}).get("nodes") or []):
+        if node.get("isFork") or node.get("name") == login:
+            continue
+        for edge in ((node.get("languages") or {}).get("edges") or []):
+            name = ((edge.get("node") or {}).get("name")) or ""
+            if name:
+                languages[name] += int(edge.get("size") or 0)
+    return dict(languages), contributions
+
+
+def collect_profile(
+    user: dict,
+    repos: list,
+    events: list,
+    language_bytes: dict | None = None,
+    contributions: dict | None = None,
+) -> dict:
     owned = [repo for repo in repos if not repo.get("fork") and repo.get("name") != LOGIN]
-    languages = Counter(repo["language"] for repo in owned if repo.get("language"))
+    if language_bytes:
+        languages = dict(Counter(language_bytes).most_common(8))
+    else:
+        languages = dict(Counter(repo["language"] for repo in owned if repo.get("language")).most_common(8))
     by_name = {repo["name"]: repo for repo in owned}
     featured = []
     for name, role in FEATURED:
@@ -104,7 +170,7 @@ def collect_profile(user: dict, repos: list, events: list) -> dict:
         "login": user.get("login") or LOGIN,
         "name": user.get("name") or LOGIN,
         "owned_projects": len(owned),
-        "languages": dict(languages.most_common()),
+        "languages": languages,
         "featured": featured,
         "latest_owned": {
             "name": latest["name"],
@@ -113,6 +179,7 @@ def collect_profile(user: dict, repos: list, events: list) -> dict:
         if latest
         else {"name": "none", "updated_at": ""},
         "pulses": pulses,
+        "contribution_shares": contribution_shares(contributions),
     }
 
 
@@ -148,25 +215,25 @@ def render_technical_profile(profile: dict) -> str:
 
 
 def render_language_distribution(profile: dict) -> str:
-    langs = list(profile["languages"].items())[:4]
-    total = sum(count for _, count in langs) or 1
+    langs = list(profile["languages"].items())[:8]
+    total = sum(size for _, size in langs) or 1
     rows = []
-    y = 58
-    for name, count in langs:
-        width = max(10, int(240 * count / total))
+    y = 64
+    for name, size in langs:
+        width = max(16, int(620 * size / total))
         label = DISPLAY.get(name, name)
         rows.append(
-            f'<text x="24" y="{y}" fill="{MUTED}" font-size="12" font-family="ui-monospace, Consolas, monospace">{esc(label)}</text>'
-            f'<rect x="120" y="{y - 12}" width="{width}" height="12" fill="{CYAN}" opacity="0.85"/>'
-            f'<text x="{128 + width}" y="{y}" fill="{TEXT}" font-size="11" font-family="ui-monospace, Consolas, monospace">{count}</text>'
+            f'<text x="28" y="{y}" fill="{MUTED}" font-size="13" font-family="ui-monospace, Consolas, monospace">{esc(label)}</text>'
+            f'<rect x="168" y="{y - 14}" width="{width}" height="16" fill="{CYAN}" opacity="0.88"/>'
         )
-        y += 22
+        y += 28
+    height = max(140, 48 + len(langs) * 28 + 20)
     body = f"""
-    {_frame(8, 8, 400, 124, CYAN)}
-    <text x="24" y="36" fill="{CYAN}" font-size="11" letter-spacing="2.4" font-family="ui-monospace, Consolas, monospace">LANGUAGE DISTRIBUTION</text>
+    {_frame(8, 8, 832, height - 16, CYAN)}
+    <text x="28" y="36" fill="{CYAN}" font-size="11" letter-spacing="2.4" font-family="ui-monospace, Consolas, monospace">LANGUAGE DISTRIBUTION</text>
     {"".join(rows)}
     """
-    return _svg(416, 140, body)
+    return _svg(848, height, body)
 
 
 def render_activity_timeline(profile: dict) -> str:
@@ -193,6 +260,46 @@ def render_activity_timeline(profile: dict) -> str:
     return _svg(848, 140, body)
 
 
+def render_contribution_distribution(profile: dict) -> str:
+    shares = profile.get("contribution_shares") or {key: 0 for key in AXES}
+    cx, cy, radius = 424, 168, 88
+    points = {
+        "code_reviews": (cx, cy - radius * shares["code_reviews"] / 100),
+        "issues": (cx + radius * shares["issues"] / 100, cy),
+        "pull_requests": (cx, cy + radius * shares["pull_requests"] / 100),
+        "commits": (cx - radius * shares["commits"] / 100, cy),
+    }
+    poly = " ".join(f"{x:.1f},{y:.1f}" for x, y in (points["code_reviews"], points["issues"], points["pull_requests"], points["commits"]))
+    labels = []
+    if shares["commits"]:
+        labels.append(f'<text x="{cx - radius - 8}" y="{cy - 10}" text-anchor="end" fill="{GREEN}" font-size="13" font-family="ui-monospace, Consolas, monospace">{shares["commits"]}%</text>')
+    if shares["pull_requests"]:
+        labels.append(f'<text x="{cx + 12}" y="{cy + radius + 18}" fill="{GREEN}" font-size="13" font-family="ui-monospace, Consolas, monospace">{shares["pull_requests"]}%</text>')
+    if shares["code_reviews"]:
+        labels.append(f'<text x="{cx + 12}" y="{cy - radius - 8}" fill="{GREEN}" font-size="13" font-family="ui-monospace, Consolas, monospace">{shares["code_reviews"]}%</text>')
+    if shares["issues"]:
+        labels.append(f'<text x="{cx + radius + 8}" y="{cy - 10}" fill="{GREEN}" font-size="13" font-family="ui-monospace, Consolas, monospace">{shares["issues"]}%</text>')
+    dots = []
+    for key, (x, y) in points.items():
+        if shares[key]:
+            dots.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" fill="{TEXT}"/>')
+    body = f"""
+    {_frame(8, 8, 832, 284, GREEN)}
+    <text x="28" y="36" fill="{GREEN}" font-size="11" letter-spacing="2.4" font-family="ui-monospace, Consolas, monospace">CONTRIBUTION DISTRIBUTION</text>
+    <text x="420" y="36" fill="{MUTED}" font-size="11" letter-spacing="1.6" font-family="ui-monospace, Consolas, monospace">LAST 90 DAYS</text>
+    <line x1="{cx}" y1="{cy - radius}" x2="{cx}" y2="{cy + radius}" stroke="{GREEN}" stroke-width="1.4"/>
+    <line x1="{cx - radius}" y1="{cy}" x2="{cx + radius}" y2="{cy}" stroke="{GREEN}" stroke-width="1.4"/>
+    <polygon points="{poly}" fill="{GREEN}" fill-opacity="0.28" stroke="{CYAN}" stroke-width="1.2"/>
+    {"".join(dots)}
+    {"".join(labels)}
+    <text x="{cx}" y="{cy - radius - 14}" text-anchor="middle" fill="{MUTED}" font-size="12" font-family="ui-monospace, Consolas, monospace">CODE REVIEWS</text>
+    <text x="{cx}" y="{cy + radius + 32}" text-anchor="middle" fill="{MUTED}" font-size="12" font-family="ui-monospace, Consolas, monospace">PULL REQUESTS</text>
+    <text x="{cx - radius - 12}" y="{cy + 4}" text-anchor="end" fill="{MUTED}" font-size="12" font-family="ui-monospace, Consolas, monospace">COMMITS</text>
+    <text x="{cx + radius + 12}" y="{cy + 4}" fill="{MUTED}" font-size="12" font-family="ui-monospace, Consolas, monospace">ISSUES</text>
+    """
+    return _svg(848, 300, body)
+
+
 def render_project_card(item: dict) -> str:
     heading = "CORE SYSTEM" if item["role"] == "primary" else "FEATURED PROJECT"
     accent = GREEN if item["role"] == "primary" else AMBER
@@ -213,6 +320,7 @@ def render_cards(profile: dict) -> dict[str, str]:
         "technical-profile.svg": render_technical_profile(profile),
         "language-distribution.svg": render_language_distribution(profile),
         "activity-timeline.svg": render_activity_timeline(profile),
+        "contribution-distribution.svg": render_contribution_distribution(profile),
     }
     for item in profile["featured"]:
         cards[PROJECT_FILES[item["name"]]] = render_project_card(item)
@@ -252,14 +360,43 @@ def _get(url: str, token: str | None) -> object:
         return json.load(resp)
 
 
+def _graphql(token: str, login: str) -> dict:
+    now = datetime.now(timezone.utc)
+    variables = {
+        "login": login,
+        "from": (now - timedelta(days=90)).strftime("%Y-%m-%dT00:00:00Z"),
+        "to": now.strftime("%Y-%m-%dT23:59:59Z"),
+    }
+    payload = json.dumps({"query": GRAPHQL_QUERY, "variables": variables}).encode()
+    req = urllib.request.Request(
+        "https://api.github.com/graphql",
+        data=payload,
+        method="POST",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "poyqraz-engineering-profile",
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        data = json.load(resp)
+    if not isinstance(data, dict) or data.get("errors"):
+        raise RuntimeError("unexpected GraphQL payload")
+    return data
+
+
 def fetch_profile(login: str, token: str | None) -> dict:
+    if not token:
+        raise RuntimeError("GITHUB_TOKEN required for GraphQL metrics")
     user = _get(f"https://api.github.com/users/{login}", token)
     # ponytail: one page of 100 covers this profile; add Link pagination if owned repos exceed 100
     repos = _get(f"https://api.github.com/users/{login}/repos?per_page=100&type=owner&sort=updated", token)
     events = _get(f"https://api.github.com/users/{login}/events/public?per_page=100", token)
     if not isinstance(user, dict) or not isinstance(repos, list) or not isinstance(events, list):
         raise RuntimeError("unexpected GitHub payload")
-    return collect_profile(user, repos, events)
+    language_bytes, contributions = parse_graphql(_graphql(token, login), login)
+    return collect_profile(user, repos, events, language_bytes, contributions)
 
 
 def main() -> int:
@@ -267,7 +404,7 @@ def main() -> int:
     try:
         profile = fetch_profile(LOGIN, token)
         svgs = render_cards(profile)
-    except (urllib.error.URLError, TimeoutError, RuntimeError, json.JSONDecodeError) as exc:
+    except (urllib.error.URLError, TimeoutError, RuntimeError, json.JSONDecodeError, KeyError) as exc:
         print(f"keep existing SVGs: {exc}", file=sys.stderr)
         return 1
     written = write_if_valid(OUT_DIR, svgs)

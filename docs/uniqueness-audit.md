@@ -7,31 +7,17 @@ Date: 2026-08-17. Claim: original production plus similarity checks, not a globa
 | Check | Result |
 | --- | --- |
 | No third-party README template, stats card, trophy, snake, typing banner, or visitor badge | Pass. Working-tree grep found none of `github-readme-stats`, `snake.svg`, `typing-svg`, `visitor-badge`, `github-profile-trophy`. |
-| No copied layout from the five reference profiles | Pass. This revision is a graphite engineering console of separately linked cards, not ASCII/neofetch, CRT-green terminal, dithered bio, GitSkins dashboard, or synthwave widgets. |
-| No star or follower counts | Pass. Generator tests ban those substrings; live SVGs omit them. |
-| No game-like copy | Pass. Tests ban `PAYLOAD BAY`, `PRIMARY LOCK`, `SIGHTLINE PULSES`, `BORESIGHT HUD`, and related HUD labels. |
-| Clickable composition | Pass. README wraps hero, technical, language, activity, four project, GitHub, and LinkedIn cards in distinct links. |
+| No copied layout from the five reference profiles | Pass. Graphite engineering console of separately linked cards, not ASCII/neofetch, CRT-green terminal, dithered bio, GitSkins dashboard, or synthwave widgets. |
+| Contribution radar is original | Pass. Uses the four GitHub contribution axes, but graphite/cyan/amber instrumentation, corner frames, and `CONTRIBUTION DISTRIBUTION · LAST 90 DAYS` copy. Not a github-readme-stats embed. |
+| Language card has no counts | Pass. Tests assert language SVG text contains names and proportional bars only. |
+| No star or follower counts | Pass. Generator tests ban those substrings. |
+| Clickable composition | Pass. Hero, technical, language, radar, activity, four projects, GitHub, and LinkedIn are distinct links. |
 
-## Phrase searches
+## Data source
 
-GitHub code search (`gh search code`, 2026-08-17):
-
-| Query | Result |
-| --- | --- |
-| `ENGINEERING SYSTEMS PROFILE` | 0 hits |
-| `ACTIVITY TIMELINE` in README.md | Timed out |
-| `CORE SYSTEM` in README.md | Timed out |
-
-Layout uniqueness is carried by the linked card set, cyanotype iris, kinematic MECHANISM / PERCEPTION / DECISION chain, and professional console labels rather than a single slogan.
-
-## Data check against GitHub API (same day)
-
-- Owned non-fork projects excluding the profile repository: 20
-- Language mix: Python 14, Jupyter 2
-- Featured order: ARTPS, PyFoldable, YOLOv8 tutorial, AUV line tracking
-- Latest owned write by `updated_at`: PyFoldable 2026-08-16
-- LinkedIn: `https://www.linkedin.com/in/poyrazbaydemir/`
+- Language mix: GraphQL repository language bytes, forks and the profile repository excluded, top eight languages.
+- Radar: GraphQL `contributionsCollection` for the last 90 days: commits, pull requests, code reviews, issues. Percentages are shares of that total, not invented values.
 
 ## Render notes
 
-Cards use 416 px or 848 px `viewBox` widths so a two-column GitHub table collapses cleanly on mobile. Palette remains dark graphite with cyan/amber instrumentation. Green is reserved for the core system card, the decision node, and active timeline days.
+Language and radar cards are 848 px wide. Project and contact cards remain 416 px for two-column GitHub tables.

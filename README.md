@@ -2,16 +2,17 @@
   <a href="https://github.com/Poyqraz"><img src="assets/hero.svg" alt="Poyraz Baydemir engineering systems profile" width="100%"></a>
 </p>
 
-<table width="100%">
-  <tr>
-    <td width="50%">
-      <a href="https://github.com/Poyqraz?tab=repositories"><img src="assets/generated/technical-profile.svg" alt="Technical profile" width="100%"></a>
-    </td>
-    <td width="50%">
-      <a href="https://github.com/Poyqraz?tab=repositories&type=source"><img src="assets/generated/language-distribution.svg" alt="Language distribution" width="100%"></a>
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <a href="https://github.com/Poyqraz?tab=repositories"><img src="assets/generated/technical-profile.svg" alt="Technical profile" width="100%"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Poyqraz?tab=repositories&type=source"><img src="assets/generated/language-distribution.svg" alt="Language distribution" width="100%"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Poyqraz"><img src="assets/generated/contribution-distribution.svg" alt="Contribution distribution last 90 days" width="100%"></a>
+</p>
 
 <p align="center">
   <a href="https://github.com/Poyqraz"><img src="assets/generated/activity-timeline.svg" alt="Activity timeline" width="100%"></a>
