@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Poyqraz?tab=repositories&type=source"><img src="assets/generated/language-distribution.svg" alt="Language distribution" width="100%"></a>
+  <a href="https://github.com/Poyqraz?tab=repositories"><img src="assets/generated/language-distribution.svg" alt="Language distribution" width="100%"></a>
 </p>
 
 <p align="center">

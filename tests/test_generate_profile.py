@@ -218,10 +218,10 @@ class CollectProfileTests(unittest.TestCase):
     def setUp(self):
         self.profile = _profile()
 
-    def test_owned_count_excludes_forks(self):
-        self.assertEqual(self.profile["owned_projects"], 5)
+    def test_profile_omits_owned_repository_count(self):
+        self.assertNotIn("owned_projects", self.profile)
 
-    def test_language_bytes_ignore_ninth_language(self):
+    def test_language_bytes_drop_tex_and_keep_at_least_five(self):
         names = list(self.profile["languages"])
         self.assertEqual(
             names,
@@ -230,13 +230,17 @@ class CollectProfileTests(unittest.TestCase):
                 "Jupyter Notebook",
                 "JavaScript",
                 "TypeScript",
-                "TeX",
                 "C++",
                 "CSS",
                 "Shell",
+                "HTML",
             ],
         )
-        self.assertNotIn("HTML", self.profile["languages"])
+        self.assertNotIn("TeX", self.profile["languages"])
+        self.assertGreaterEqual(len(names), 5)
+
+    def test_token_burn_uses_activity_weights(self):
+        self.assertEqual(self.profile["token_burn"], 331300)
 
     def test_featured_order_puts_artps_first(self):
         names = [item["name"] for item in self.profile["featured"]]
@@ -265,9 +269,9 @@ class CollectProfileTests(unittest.TestCase):
 
 
 class GraphQLParseTests(unittest.TestCase):
-    def test_parse_graphql_skips_forks_and_profile_repo(self):
+    def test_parse_graphql_keeps_forks_and_skips_profile_repo(self):
         languages, contributions = gp.parse_graphql(SAMPLE_GRAPHQL, "Poyqraz")
-        self.assertEqual(languages, {"Python": 1000, "TeX": 80, "JavaScript": 200})
+        self.assertEqual(languages, {"Python": 1000, "TeX": 80, "TypeScript": 5000, "JavaScript": 200})
         self.assertEqual(
             contributions,
             {"commits": 247, "pull_requests": 88, "code_reviews": 0, "issues": 0},
@@ -319,8 +323,24 @@ class RenderTests(unittest.TestCase):
         text = _svg_text(svg)
         self.assertIn("Python", text)
         self.assertIn("JavaScript", text)
+        self.assertIn("HTML", text)
+        self.assertNotIn("TeX", text)
+        self.assertGreaterEqual(sum(1 for name in self.profile["languages"]), 5)
         self.assertNotRegex(text, r"\d")
         self.assertNotIn("%", text)
+
+    def test_technical_card_shows_latest_and_token_burn(self):
+        svg = self.svgs["technical-profile.svg"]
+        root = ET.fromstring(svg)
+        self.assertEqual(root.attrib.get("width"), "848")
+        text = _svg_text(svg)
+        self.assertIn("LATEST UPDATE", text)
+        self.assertIn("PyFoldable", text)
+        self.assertIn("TOKEN BURN · EST.", text)
+        self.assertIn("~331,300", text)
+        self.assertIn("ACTIVITY-WEIGHTED, CAFFEINE-ADJUSTED", text)
+        self.assertNotIn("OWNED REPOSITORIES", text)
+        self.assertNotRegex(text, r"\b5\b")
 
     def test_radar_card_shows_axis_percentages(self):
         svg = self.svgs["contribution-distribution.svg"]

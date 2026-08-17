@@ -45,6 +45,7 @@ PROJECT_FILES = {
 }
 
 AXES = ("commits", "pull_requests", "code_reviews", "issues")
+TOKEN_WEIGHTS = {"commits": 700, "pull_requests": 1800, "code_reviews": 900, "issues": 500}
 GRAPHITE = "#0c1014"
 PANEL = "#141b21"
 LINE = "#24303a"
@@ -64,7 +65,7 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
       totalPullRequestContributions
       totalPullRequestReviewContributions
     }
-    repositories(first: 100, ownerAffiliations: OWNER, isFork: false) {
+    repositories(first: 100, ownerAffiliations: OWNER) {
       nodes {
         name
         isFork
@@ -84,6 +85,11 @@ def esc(value: str | None) -> str:
 
 def parse_time(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def estimate_tokens(contributions: dict | None) -> int:
+    data = contributions or {}
+    return sum(int(data.get(key, 0) or 0) * TOKEN_WEIGHTS[key] for key in AXES)
 
 
 def contribution_shares(contributions: dict | None) -> dict[str, int]:
@@ -112,7 +118,7 @@ def parse_graphql(payload: dict, login: str) -> tuple[dict[str, int], dict[str, 
     }
     languages: Counter[str] = Counter()
     for node in ((user.get("repositories") or {}).get("nodes") or []):
-        if node.get("isFork") or node.get("name") == login:
+        if node.get("name") == login:
             continue
         for edge in ((node.get("languages") or {}).get("edges") or []):
             name = ((edge.get("node") or {}).get("name")) or ""
@@ -129,10 +135,10 @@ def collect_profile(
     contributions: dict | None = None,
 ) -> dict:
     owned = [repo for repo in repos if not repo.get("fork") and repo.get("name") != LOGIN]
-    if language_bytes:
-        languages = dict(Counter(language_bytes).most_common(8))
-    else:
-        languages = dict(Counter(repo["language"] for repo in owned if repo.get("language")).most_common(8))
+    sources = language_bytes or Counter(
+        repo["language"] for repo in repos if repo.get("language") and repo.get("name") != LOGIN
+    )
+    languages = dict(Counter({name: size for name, size in sources.items() if name != "TeX"}).most_common(8))
     by_name = {repo["name"]: repo for repo in owned}
     featured = []
     for name, role in FEATURED:
@@ -169,7 +175,6 @@ def collect_profile(
     return {
         "login": user.get("login") or LOGIN,
         "name": user.get("name") or LOGIN,
-        "owned_projects": len(owned),
         "languages": languages,
         "featured": featured,
         "latest_owned": {
@@ -180,6 +185,7 @@ def collect_profile(
         else {"name": "none", "updated_at": ""},
         "pulses": pulses,
         "contribution_shares": contribution_shares(contributions),
+        "token_burn": estimate_tokens(contributions),
     }
 
 
@@ -202,16 +208,18 @@ def _frame(x: int, y: int, w: int, h: int, accent: str = CYAN) -> str:
 
 def render_technical_profile(profile: dict) -> str:
     latest = profile["latest_owned"]
+    burn = f"{int(profile.get('token_burn', 0)):,}"
     body = f"""
-    {_frame(8, 8, 400, 124, AMBER)}
-    <text x="24" y="36" fill="{AMBER}" font-size="11" letter-spacing="2.4" font-family="ui-monospace, Consolas, monospace">TECHNICAL PROFILE</text>
-    <text x="24" y="78" fill="{TEXT}" font-size="32" font-family="ui-monospace, Consolas, monospace">{profile["owned_projects"]}</text>
-    <text x="24" y="102" fill="{MUTED}" font-size="12" font-family="ui-monospace, Consolas, monospace">OWNED REPOSITORIES</text>
-    <text x="220" y="70" fill="{GREEN}" font-size="11" letter-spacing="1.8" font-family="ui-monospace, Consolas, monospace">LATEST UPDATE</text>
-    <text x="220" y="94" fill="{TEXT}" font-size="14" font-family="ui-monospace, Consolas, monospace">{esc(latest["name"])}</text>
-    <text x="220" y="114" fill="{MUTED}" font-size="12" font-family="ui-monospace, Consolas, monospace">{esc(latest["updated_at"])}</text>
+    {_frame(8, 8, 832, 124, AMBER)}
+    <text x="28" y="36" fill="{AMBER}" font-size="11" letter-spacing="2.4" font-family="ui-monospace, Consolas, monospace">TECHNICAL PROFILE</text>
+    <text x="28" y="70" fill="{GREEN}" font-size="11" letter-spacing="1.8" font-family="ui-monospace, Consolas, monospace">LATEST UPDATE</text>
+    <text x="28" y="94" fill="{TEXT}" font-size="18" font-family="ui-monospace, Consolas, monospace">{esc(latest["name"])}</text>
+    <text x="28" y="114" fill="{MUTED}" font-size="12" font-family="ui-monospace, Consolas, monospace">{esc(latest["updated_at"])}</text>
+    <text x="520" y="70" fill="{GREEN}" font-size="11" letter-spacing="1.8" font-family="ui-monospace, Consolas, monospace">TOKEN BURN · EST.</text>
+    <text x="520" y="94" fill="{TEXT}" font-size="28" font-family="ui-monospace, Consolas, monospace">~{burn}</text>
+    <text x="520" y="114" fill="{MUTED}" font-size="11" font-family="ui-monospace, Consolas, monospace">ACTIVITY-WEIGHTED, CAFFEINE-ADJUSTED</text>
     """
-    return _svg(416, 140, body)
+    return _svg(848, 140, body)
 
 
 def render_language_distribution(profile: dict) -> str:
