@@ -240,7 +240,7 @@ class CollectProfileTests(unittest.TestCase):
         self.assertGreaterEqual(len(names), 5)
 
     def test_token_burn_uses_activity_weights(self):
-        self.assertEqual(self.profile["token_burn"], 331300)
+        self.assertEqual(self.profile["token_burn"], 2_087_190_000)
 
     def test_featured_order_puts_artps_first(self):
         names = [item["name"] for item in self.profile["featured"]]
@@ -328,6 +328,14 @@ class RenderTests(unittest.TestCase):
         self.assertGreaterEqual(sum(1 for name in self.profile["languages"]), 5)
         self.assertNotRegex(text, r"\d")
         self.assertNotIn("%", text)
+        bars = [
+            int(float(node.attrib["width"]))
+            for node in root.iter()
+            if node.tag.endswith("rect") and node.attrib.get("fill") == "#5ce1e6"
+        ]
+        self.assertTrue(bars)
+        self.assertGreater(min(bars), 16)
+        self.assertLessEqual(max(bars) / min(bars), 10)
 
     def test_technical_card_shows_latest_and_token_burn(self):
         svg = self.svgs["technical-profile.svg"]
@@ -337,7 +345,7 @@ class RenderTests(unittest.TestCase):
         self.assertIn("LATEST UPDATE", text)
         self.assertIn("PyFoldable", text)
         self.assertIn("TOKEN BURN · EST.", text)
-        self.assertIn("~331,300", text)
+        self.assertIn("~2.1B", text)
         self.assertIn("ACTIVITY-WEIGHTED, CAFFEINE-ADJUSTED", text)
         self.assertNotIn("OWNED REPOSITORIES", text)
         self.assertNotRegex(text, r"\b5\b")

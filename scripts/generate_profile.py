@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import json
+import math
 import os
 import sys
 import urllib.error
@@ -45,7 +46,7 @@ PROJECT_FILES = {
 }
 
 AXES = ("commits", "pull_requests", "code_reviews", "issues")
-TOKEN_WEIGHTS = {"commits": 700, "pull_requests": 1800, "code_reviews": 900, "issues": 500}
+TOKEN_WEIGHTS = {"commits": 4_410_000, "pull_requests": 11_340_000, "code_reviews": 5_670_000, "issues": 3_150_000}
 GRAPHITE = "#0c1014"
 PANEL = "#141b21"
 LINE = "#24303a"
@@ -208,7 +209,8 @@ def _frame(x: int, y: int, w: int, h: int, accent: str = CYAN) -> str:
 
 def render_technical_profile(profile: dict) -> str:
     latest = profile["latest_owned"]
-    burn = f"{int(profile.get('token_burn', 0)):,}"
+    burn = profile.get("token_burn", 0)
+    label = f"{burn / 1_000_000_000:.1f}B" if burn >= 1_000_000_000 else f"{int(burn):,}"
     body = f"""
     {_frame(8, 8, 832, 124, AMBER)}
     <text x="28" y="36" fill="{AMBER}" font-size="11" letter-spacing="2.4" font-family="ui-monospace, Consolas, monospace">TECHNICAL PROFILE</text>
@@ -216,7 +218,7 @@ def render_technical_profile(profile: dict) -> str:
     <text x="28" y="94" fill="{TEXT}" font-size="18" font-family="ui-monospace, Consolas, monospace">{esc(latest["name"])}</text>
     <text x="28" y="114" fill="{MUTED}" font-size="12" font-family="ui-monospace, Consolas, monospace">{esc(latest["updated_at"])}</text>
     <text x="520" y="70" fill="{GREEN}" font-size="11" letter-spacing="1.8" font-family="ui-monospace, Consolas, monospace">TOKEN BURN · EST.</text>
-    <text x="520" y="94" fill="{TEXT}" font-size="28" font-family="ui-monospace, Consolas, monospace">~{burn}</text>
+    <text x="520" y="94" fill="{TEXT}" font-size="28" font-family="ui-monospace, Consolas, monospace">~{label}</text>
     <text x="520" y="114" fill="{MUTED}" font-size="11" font-family="ui-monospace, Consolas, monospace">ACTIVITY-WEIGHTED, CAFFEINE-ADJUSTED</text>
     """
     return _svg(848, 140, body)
@@ -224,11 +226,12 @@ def render_technical_profile(profile: dict) -> str:
 
 def render_language_distribution(profile: dict) -> str:
     langs = list(profile["languages"].items())[:8]
-    total = sum(size for _, size in langs) or 1
+    weights = [math.sqrt(size) for _, size in langs]
+    total = sum(weights) or 1
     rows = []
     y = 64
-    for name, size in langs:
-        width = max(16, int(620 * size / total))
+    for (name, _), weight in zip(langs, weights):
+        width = max(17, round(620 * weight / total))
         label = DISPLAY.get(name, name)
         rows.append(
             f'<text x="28" y="{y}" fill="{MUTED}" font-size="13" font-family="ui-monospace, Consolas, monospace">{esc(label)}</text>'
