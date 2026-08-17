@@ -1,0 +1,38 @@
+name: Update sightline telemetry
+
+on:
+  schedule:
+    - cron: "23 3 * * 1"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/generate_profile.py"
+      - ".github/workflows/update-profile.yml"
+      - "tests/test_generate_profile.py"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test generator
+        run: python tests/test_generate_profile.py
+      - name: Generate SVGs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROFILE_LOGIN: Poyqraz
+        run: python scripts/generate_profile.py
+      - name: Commit changed SVGs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/generated/*.svg
+          git diff --cached --quiet || git commit -m "chore: refresh sightline telemetry"
+          git push
