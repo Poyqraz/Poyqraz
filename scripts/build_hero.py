@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 AVATAR = ROOT / "assets" / "avatar.jpg"
 OUT = ROOT / "assets" / "hero.svg"
+CONTACTS = ROOT / "assets"
 
 
 def rail() -> str:
@@ -20,9 +21,30 @@ def rail() -> str:
     return "".join(ticks)
 
 
+def write_contact_cards() -> None:
+    github = """<svg xmlns="http://www.w3.org/2000/svg" width="416" height="72" viewBox="0 0 416 72" role="img" aria-label="GitHub">
+  <rect width="416" height="72" fill="#0c1014"/>
+  <rect x="8" y="8" width="400" height="56" fill="#141b21" stroke="#24303a"/>
+  <path d="M16 16 H34 M16 16 V34" stroke="#5ce1e6" fill="none" stroke-width="1.6"/>
+  <text x="28" y="42" fill="#5ce1e6" font-size="12" letter-spacing="2.4" font-family="ui-monospace, Consolas, monospace">GITHUB</text>
+  <text x="140" y="42" fill="#d8e0e6" font-size="14" font-family="ui-monospace, Consolas, monospace">github.com/Poyqraz</text>
+</svg>
+"""
+    linkedin = """<svg xmlns="http://www.w3.org/2000/svg" width="416" height="72" viewBox="0 0 416 72" role="img" aria-label="LinkedIn">
+  <rect width="416" height="72" fill="#0c1014"/>
+  <rect x="8" y="8" width="400" height="56" fill="#141b21" stroke="#24303a"/>
+  <path d="M16 16 H34 M16 16 V34" stroke="#e8a23a" fill="none" stroke-width="1.6"/>
+  <text x="28" y="42" fill="#e8a23a" font-size="12" letter-spacing="2.4" font-family="ui-monospace, Consolas, monospace">LINKEDIN</text>
+  <text x="150" y="42" fill="#d8e0e6" font-size="14" font-family="ui-monospace, Consolas, monospace">poyrazbaydemir</text>
+</svg>
+"""
+    (CONTACTS / "contact-github.svg").write_text(github, encoding="utf-8")
+    (CONTACTS / "contact-linkedin.svg").write_text(linkedin, encoding="utf-8")
+
+
 def main() -> None:
     img = base64.b64encode(AVATAR.read_bytes()).decode()
-    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="848" height="268" viewBox="0 0 848 268" role="img" aria-label="Poyraz Baydemir boresight HUD">
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="848" height="268" viewBox="0 0 848 268" role="img" aria-label="Poyraz Baydemir engineering systems profile">
   <defs>
     <clipPath id="iris"><circle cx="134" cy="118" r="78"/></clipPath>
     <filter id="cyanotype" color-interpolation-filters="sRGB">
@@ -44,8 +66,8 @@ def main() -> None:
   <line x1="212" y1="118" x2="224" y2="118" stroke="#5ce1e6"/>
   <image href="data:image/jpeg;base64,{img}" x="56" y="40" width="156" height="156" clip-path="url(#iris)" filter="url(#cyanotype)" preserveAspectRatio="xMidYMid slice"/>
   <circle cx="134" cy="118" r="78" fill="none" stroke="#5ce1e6" stroke-width="1.4"/>
-  <text x="134" y="216" text-anchor="middle" fill="#5ce1e6" font-size="11" letter-spacing="3.2" font-family="ui-monospace, Consolas, monospace">PERCEPTION LOCK</text>
-  <text x="272" y="42" fill="#e8a23a" font-size="11" letter-spacing="3.4" font-family="ui-monospace, Consolas, monospace">BORESIGHT HUD</text>
+  <text x="134" y="216" text-anchor="middle" fill="#5ce1e6" font-size="11" letter-spacing="3.2" font-family="ui-monospace, Consolas, monospace">VISION SYSTEMS</text>
+  <text x="272" y="42" fill="#e8a23a" font-size="11" letter-spacing="2.2" font-family="ui-monospace, Consolas, monospace">ENGINEERING SYSTEMS PROFILE</text>
   <text x="272" y="84" fill="#d8e0e6" font-size="28" letter-spacing="2" font-family="ui-monospace, Consolas, monospace">POYRAZ BAYDEMİR</text>
   <text x="272" y="112" fill="#8a97a3" font-size="13" font-family="ui-monospace, Consolas, monospace">A Mechanical Engineer Who Enjoys Artificial Intelligence</text>
   <circle cx="286" cy="158" r="8" fill="none" stroke="#e8a23a" stroke-width="1.6"/>
@@ -61,16 +83,17 @@ def main() -> None:
   <text x="466" y="186" text-anchor="middle" fill="#6ee07a" font-size="10" letter-spacing="1.5" font-family="ui-monospace, Consolas, monospace">DECISION</text>
   <text x="560" y="154" fill="#8a97a3" font-size="12" font-family="ui-monospace, Consolas, monospace">Selcuk University</text>
   <text x="560" y="176" fill="#8a97a3" font-size="12" font-family="ui-monospace, Consolas, monospace">Ordu / Konya</text>
-  <text x="560" y="198" fill="#5ce1e6" font-size="11" font-family="ui-monospace, Consolas, monospace">FIELD OF REGARD · OPTIC RAIL</text>
+  <text x="560" y="198" fill="#5ce1e6" font-size="11" font-family="ui-monospace, Consolas, monospace">MECHANICS · PERCEPTION · AUTONOMY</text>
   <rect x="16" y="240" width="816" height="16" fill="#141b21"/>
   <g fill="#5ce1e6" opacity="0.7">{rail()}</g>
-  <text x="720" y="252" fill="#e8a23a" font-size="9" letter-spacing="2" font-family="ui-monospace, Consolas, monospace">ACTUATOR LOOP</text>
+  <text x="690" y="252" fill="#e8a23a" font-size="9" letter-spacing="2" font-family="ui-monospace, Consolas, monospace">SYSTEMS PROFILE</text>
   <rect x="272" y="24" width="120" height="2" fill="#5ce1e6">
     <animate attributeName="x" values="272;700;272" dur="9s" repeatCount="indefinite"/>
   </rect>
 </svg>
 """
     OUT.write_text(svg, encoding="utf-8")
+    write_contact_cards()
     print(OUT, OUT.stat().st_size)
 
 

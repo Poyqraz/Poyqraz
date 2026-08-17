@@ -37,6 +37,13 @@ DISPLAY = {
     "Jupyter Notebook": "Jupyter",
 }
 
+PROJECT_FILES = {
+    "ARTPS": "project-artps.svg",
+    "PyFoldable": "project-pyfoldable.svg",
+    "YOLO-v8-Object-Detection-Tutorial-on-CPU-GPU": "project-yolov8.svg",
+    "Line-Tracking-and-Anomaly-Detection": "project-auv.svg",
+}
+
 GRAPHITE = "#0c1014"
 PANEL = "#141b21"
 LINE = "#24303a"
@@ -58,7 +65,7 @@ def parse_time(value: str) -> datetime:
 
 
 def collect_profile(user: dict, repos: list, events: list) -> dict:
-    owned = [repo for repo in repos if not repo.get("fork")]
+    owned = [repo for repo in repos if not repo.get("fork") and repo.get("name") != LOGIN]
     languages = Counter(repo["language"] for repo in owned if repo.get("language"))
     by_name = {repo["name"]: repo for repo in owned}
     featured = []
@@ -68,7 +75,7 @@ def collect_profile(user: dict, repos: list, events: list) -> dict:
             {
                 "name": name,
                 "role": role,
-                "description": BLURBS.get(name) or repo.get("description") or "Field project.",
+                "description": BLURBS.get(name) or repo.get("description") or "Engineering project.",
                 "html_url": repo.get("html_url") or f"https://github.com/{LOGIN}/{name}",
                 "language": repo.get("language") or "Python",
                 "updated_at": repo.get("updated_at") or "",
@@ -117,96 +124,99 @@ def _svg(width: int, height: int, body: str) -> str:
     )
 
 
-def _ticks(x: int, y: int, w: int) -> str:
-    marks = []
-    for i in range(0, w + 1, 16):
-        h = 8 if i % 64 == 0 else 4
-        marks.append(f'<rect x="{x + i}" y="{y}" width="1" height="{h}" fill="{CYAN}" opacity="0.45"/>')
-    return "".join(marks)
+def _frame(x: int, y: int, w: int, h: int, accent: str = CYAN) -> str:
+    return (
+        f'<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="{PANEL}" stroke="{LINE}"/>'
+        f'<path d="M{x + 8} {y + 8} H{x + 26} M{x + 8} {y + 8} V{y + 26} '
+        f'M{x + w - 8} {y + 8} H{x + w - 26} M{x + w - 8} {y + 8} V{y + 26}" '
+        f'stroke="{accent}" fill="none" stroke-width="1.6"/>'
+    )
 
 
-def render_telemetry(profile: dict) -> str:
-    langs = list(profile["languages"].items())[:4]
-    total = sum(count for _, count in langs) or 1
-    x = 220
-    bands = []
-    for name, count in langs:
-        width = max(8, int(220 * count / total))
-        label = DISPLAY.get(name, name)
-        bands.append(
-            f'<rect x="{x}" y="64" width="{width}" height="18" fill="{CYAN}" opacity="0.85"/>'
-            f'<text x="{x}" y="100" fill="{MUTED}" font-size="11" font-family="ui-monospace, Consolas, monospace">{esc(label)} {count}</text>'
-        )
-        x += width + 12
+def render_technical_profile(profile: dict) -> str:
     latest = profile["latest_owned"]
     body = f"""
-    <rect x="16" y="16" width="816" height="108" fill="{PANEL}" stroke="{LINE}" />
-    <text x="28" y="38" fill="{AMBER}" font-size="11" letter-spacing="3" font-family="ui-monospace, Consolas, monospace">FIELD TELEMETRY</text>
-    <text x="28" y="78" fill="{TEXT}" font-size="36" font-family="ui-monospace, Consolas, monospace">{profile["owned_projects"]}</text>
-    <text x="28" y="102" fill="{MUTED}" font-size="12" font-family="ui-monospace, Consolas, monospace">OWNED PROJECTS</text>
-    <text x="220" y="38" fill="{CYAN}" font-size="11" letter-spacing="3" font-family="ui-monospace, Consolas, monospace">SIGNAL BANDS</text>
-    {"".join(bands)}
-    <text x="560" y="38" fill="{GREEN}" font-size="11" letter-spacing="3" font-family="ui-monospace, Consolas, monospace">LAST FIELD WRITE</text>
-    <text x="560" y="78" fill="{TEXT}" font-size="16" font-family="ui-monospace, Consolas, monospace">{esc(latest["name"])}</text>
-    <text x="560" y="102" fill="{MUTED}" font-size="12" font-family="ui-monospace, Consolas, monospace">{esc(latest["updated_at"])}</text>
-    {_ticks(28, 114, 790)}
+    {_frame(8, 8, 400, 124, AMBER)}
+    <text x="24" y="36" fill="{AMBER}" font-size="11" letter-spacing="2.4" font-family="ui-monospace, Consolas, monospace">TECHNICAL PROFILE</text>
+    <text x="24" y="78" fill="{TEXT}" font-size="32" font-family="ui-monospace, Consolas, monospace">{profile["owned_projects"]}</text>
+    <text x="24" y="102" fill="{MUTED}" font-size="12" font-family="ui-monospace, Consolas, monospace">OWNED REPOSITORIES</text>
+    <text x="220" y="70" fill="{GREEN}" font-size="11" letter-spacing="1.8" font-family="ui-monospace, Consolas, monospace">LATEST UPDATE</text>
+    <text x="220" y="94" fill="{TEXT}" font-size="14" font-family="ui-monospace, Consolas, monospace">{esc(latest["name"])}</text>
+    <text x="220" y="114" fill="{MUTED}" font-size="12" font-family="ui-monospace, Consolas, monospace">{esc(latest["updated_at"])}</text>
     """
-    return _svg(848, 140, body)
+    return _svg(416, 140, body)
 
 
-def render_projects(profile: dict) -> str:
-    primary = profile["featured"][0]
-    secondaries = profile["featured"][1:]
-    cards = []
-    for i, item in enumerate(secondaries):
-        x = 16 + i * 272
-        cards.append(
-            f"""
-            <g>
-            <title>{esc(item["name"])}</title>
-            <rect x="{x}" y="176" width="260" height="88" fill="{PANEL}" stroke="{LINE}"/>
-            <path d="M{x + 8} {176 + 8} H{x + 24} M{x + 8} {176 + 8} V{176 + 24}" stroke="{AMBER}" fill="none"/>
-            <text x="{x + 14}" y="198" fill="{AMBER}" font-size="10" letter-spacing="2" font-family="ui-monospace, Consolas, monospace">PAYLOAD BAY {i + 1}</text>
-            <text x="{x + 14}" y="218" fill="{TEXT}" font-size="12" font-family="ui-monospace, Consolas, monospace">{esc(DISPLAY.get(item["name"], item["name"]))}</text>
-            <text x="{x + 14}" y="246" fill="{MUTED}" font-size="11" font-family="ui-monospace, Consolas, monospace">{esc(item["description"])}</text>
-            </g>
-            """
+def render_language_distribution(profile: dict) -> str:
+    langs = list(profile["languages"].items())[:4]
+    total = sum(count for _, count in langs) or 1
+    rows = []
+    y = 58
+    for name, count in langs:
+        width = max(10, int(240 * count / total))
+        label = DISPLAY.get(name, name)
+        rows.append(
+            f'<text x="24" y="{y}" fill="{MUTED}" font-size="12" font-family="ui-monospace, Consolas, monospace">{esc(label)}</text>'
+            f'<rect x="120" y="{y - 12}" width="{width}" height="12" fill="{CYAN}" opacity="0.85"/>'
+            f'<text x="{128 + width}" y="{y}" fill="{TEXT}" font-size="11" font-family="ui-monospace, Consolas, monospace">{count}</text>'
         )
+        y += 22
     body = f"""
-    <rect x="16" y="16" width="816" height="148" fill="{PANEL}" stroke="{CYAN}" stroke-width="1.2"/>
-    <path d="M28 28 H52 M28 28 V52 M800 28 H776 M800 28 V52 M28 152 H52 M28 152 V128 M800 152 H776 M800 152 V128" stroke="{CYAN}" fill="none" stroke-width="2"/>
-    <circle cx="780" cy="40" r="6" fill="none" stroke="{GREEN}"/>
-    <circle cx="780" cy="40" r="2" fill="{GREEN}"/>
-    <text x="36" y="44" fill="{CYAN}" font-size="11" letter-spacing="3" font-family="ui-monospace, Consolas, monospace">PRIMARY LOCK</text>
-    <text x="36" y="78" fill="{TEXT}" font-size="28" font-family="ui-monospace, Consolas, monospace">{esc(primary["name"])}</text>
-    <text x="36" y="108" fill="{MUTED}" font-size="14" font-family="ui-monospace, Consolas, monospace">{esc(primary["description"])}</text>
-    <text x="36" y="136" fill="{AMBER}" font-size="12" font-family="ui-monospace, Consolas, monospace">ACTUATOR LOOP · {esc(primary["language"])}</text>
-    {"".join(cards)}
+    {_frame(8, 8, 400, 124, CYAN)}
+    <text x="24" y="36" fill="{CYAN}" font-size="11" letter-spacing="2.4" font-family="ui-monospace, Consolas, monospace">LANGUAGE DISTRIBUTION</text>
+    {"".join(rows)}
     """
-    return _svg(848, 280, body)
+    return _svg(416, 140, body)
 
 
-def render_activity(profile: dict) -> str:
+def render_activity_timeline(profile: dict) -> str:
     pulses = profile["pulses"]
     peak = max((item["count"] for item in pulses), default=1) or 1
     bars = []
     names = []
     for i, item in enumerate(pulses):
-        x = 28 + i * 58
-        h = 8 + int(36 * item["count"] / peak)
+        x = 24 + i * 57
+        h = 8 + int(40 * item["count"] / peak)
         color = GREEN if item["count"] else LINE
-        bars.append(f'<rect x="{x}" y="{88 - h}" width="18" height="{h}" fill="{color}"/>')
-        bars.append(f'<text x="{x}" y="104" fill="{MUTED}" font-size="9" font-family="ui-monospace, Consolas, monospace">{item["day"][5:]}</text>')
+        bars.append(f'<rect x="{x}" y="{108 - h}" width="16" height="{h}" fill="{color}"/>')
+        bars.append(
+            f'<text x="{x}" y="124" fill="{MUTED}" font-size="9" font-family="ui-monospace, Consolas, monospace">{item["day"][5:]}</text>'
+        )
         names.extend(item["repos"])
-    seen = " · ".join(dict.fromkeys(names)) or "quiet rail"
+    seen = " · ".join(dict.fromkeys(names)) or "No recent public activity"
     body = f"""
-    <rect x="16" y="12" width="816" height="96" fill="{PANEL}" stroke="{LINE}"/>
-    <text x="28" y="32" fill="{CYAN}" font-size="11" letter-spacing="3" font-family="ui-monospace, Consolas, monospace">SIGHTLINE PULSES</text>
-    <text x="220" y="32" fill="{MUTED}" font-size="11" font-family="ui-monospace, Consolas, monospace">{esc(seen)}</text>
+    {_frame(8, 8, 832, 124, CYAN)}
+    <text x="24" y="36" fill="{CYAN}" font-size="11" letter-spacing="2.4" font-family="ui-monospace, Consolas, monospace">ACTIVITY TIMELINE</text>
+    <text x="220" y="36" fill="{MUTED}" font-size="11" font-family="ui-monospace, Consolas, monospace">{esc(seen)}</text>
     {"".join(bars)}
-    {_ticks(28, 86, 790)}
     """
-    return _svg(848, 120, body)
+    return _svg(848, 140, body)
+
+
+def render_project_card(item: dict) -> str:
+    heading = "CORE SYSTEM" if item["role"] == "primary" else "FEATURED PROJECT"
+    accent = GREEN if item["role"] == "primary" else AMBER
+    title = DISPLAY.get(item["name"], item["name"])
+    body = f"""
+    {_frame(8, 8, 400, 144, accent)}
+    <title>{esc(item["name"])}</title>
+    <text x="24" y="36" fill="{accent}" font-size="11" letter-spacing="2.4" font-family="ui-monospace, Consolas, monospace">{heading}</text>
+    <text x="24" y="68" fill="{TEXT}" font-size="18" font-family="ui-monospace, Consolas, monospace">{esc(title)}</text>
+    <text x="24" y="98" fill="{MUTED}" font-size="12" font-family="ui-monospace, Consolas, monospace">{esc(item["description"])}</text>
+    <text x="24" y="126" fill="{CYAN}" font-size="12" font-family="ui-monospace, Consolas, monospace">{esc(item["language"])}</text>
+    """
+    return _svg(416, 160, body)
+
+
+def render_cards(profile: dict) -> dict[str, str]:
+    cards = {
+        "technical-profile.svg": render_technical_profile(profile),
+        "language-distribution.svg": render_language_distribution(profile),
+        "activity-timeline.svg": render_activity_timeline(profile),
+    }
+    for item in profile["featured"]:
+        cards[PROJECT_FILES[item["name"]]] = render_project_card(item)
+    return cards
 
 
 def _banned_hit(svg: str) -> bool:
@@ -234,7 +244,7 @@ def write_if_valid(out_dir: Path, svgs: dict[str, str]) -> list[str]:
 
 
 def _get(url: str, token: str | None) -> object:
-    headers = {"Accept": "application/vnd.github+json", "User-Agent": "poyqraz-sightline-console"}
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "poyqraz-engineering-profile"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(url, headers=headers)
@@ -256,11 +266,7 @@ def main() -> int:
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     try:
         profile = fetch_profile(LOGIN, token)
-        svgs = {
-            "telemetry.svg": render_telemetry(profile),
-            "projects.svg": render_projects(profile),
-            "activity.svg": render_activity(profile),
-        }
+        svgs = render_cards(profile)
     except (urllib.error.URLError, TimeoutError, RuntimeError, json.JSONDecodeError) as exc:
         print(f"keep existing SVGs: {exc}", file=sys.stderr)
         return 1
