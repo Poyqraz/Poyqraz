@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="416" height="160" viewBox="0 0 416 160" role="img"><rect width="416" height="160" fill="#0c1014"/>
+    <rect x="8" y="8" width="400" height="144" fill="#141b21" stroke="#24303a"/><path d="M16 16 H34 M16 16 V34 M400 16 H382 M400 16 V34" stroke="#6ee07a" fill="none" stroke-width="1.6"/>
+    <title>ARTPS</title>
+    <text x="24" y="36" fill="#6ee07a" font-size="11" letter-spacing="2.4" font-family="ui-monospace, Consolas, monospace">CORE SYSTEM</text>
+    <text x="24" y="68" fill="#d8e0e6" font-size="18" font-family="ui-monospace, Consolas, monospace">ARTPS</text>
+    <text x="24" y="98" fill="#8a97a3" font-size="12" font-family="ui-monospace, Consolas, monospace">Hybrid AI rover target prioritization for Mars field work.</text>
+    <text x="24" y="126" fill="#5ce1e6" font-size="12" font-family="ui-monospace, Consolas, monospace">Python</text>
+    </svg>

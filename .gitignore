@@ -1,0 +1,8 @@
+__pycache__/
+.pytest_cache/
+.superpowers/
+*.pyc
+scripts/
+tests/
+docs/
+.github/

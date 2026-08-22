@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="416" height="72" viewBox="0 0 416 72" role="img" aria-label="LinkedIn">
+  <rect width="416" height="72" fill="#0c1014"/>
+  <rect x="8" y="8" width="400" height="56" fill="#141b21" stroke="#24303a"/>
+  <path d="M16 16 H34 M16 16 V34" stroke="#e8a23a" fill="none" stroke-width="1.6"/>
+  <text x="28" y="42" fill="#e8a23a" font-size="12" letter-spacing="2.4" font-family="ui-monospace, Consolas, monospace">LINKEDIN</text>
+  <text x="150" y="42" fill="#d8e0e6" font-size="14" font-family="ui-monospace, Consolas, monospace">poyrazbaydemir</text>
+</svg>
