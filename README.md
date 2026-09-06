@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Poyqraz"><img src="assets/generated/activity-timeline.svg" alt="Activity timeline" width="100%"></a>
+  <a href="https://github.com/Poyqraz"><img src="assets/generated/activity-timeline.svg" alt="Orbital field last 12 months" width="100%"></a>
 </p>
 
 <table width="100%">
